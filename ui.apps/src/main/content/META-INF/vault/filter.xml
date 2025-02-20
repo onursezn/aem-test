@@ -3,4 +3,5 @@
     <filter root="/apps/aemconnector-new/clientlibs"/>
     <filter root="/apps/aemconnector-new/components"/>
     <filter root="/apps/aemconnector-new/i18n"/>
+    <filter root="/apps/wcm/core"/>
 </workspaceFilter>
