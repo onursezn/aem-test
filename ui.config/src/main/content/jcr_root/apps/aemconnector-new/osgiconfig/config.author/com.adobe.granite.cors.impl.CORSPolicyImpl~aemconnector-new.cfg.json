@@ -1,0 +1,15 @@
+{
+  "alloworigin": ["http://localhost:3000"],
+  "allowedpaths": ["/(content|conf)/aemconnector-new.*"],
+  "supportedheaders": [
+    "Authorization",
+    "Origin",
+    "Accept",
+    "X-Requested-With",
+    "Content-Type",
+    "Access-Control-Request-Method",
+    "Access-Control-Request-Headers"
+  ],
+  "supportedmethods": ["GET","HEAD"],
+  "alloworiginregexp": []
+}
