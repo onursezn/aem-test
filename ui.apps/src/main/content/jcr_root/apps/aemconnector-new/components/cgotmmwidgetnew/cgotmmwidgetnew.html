@@ -23,153 +23,175 @@
         crossorigin="anonymous"></script>
 
 <script>
-    window.onload = function () {
-        if (typeof System !== 'undefined') {
-            System.import('@opentext/otmm-redux').then(function (redux) {
-                redux.setApplicationData({
-                    applicationName: 'Extream',
-                    baseURL: 'https://demo.cyangate.com:9443',
-                    searchConfigId: 3,
-                    keywordScopeId: 3,
-                    inline: true,
-                    multiSelect: true,
-                    linkAsset: {
-                        handler: (promise) => {
-                            promise.then((assets) => {
-                                assets.forEach((asset) => {
-                                    updateAsset(asset)
-                                });
-                            });
-                        },
-                        eventProperties: [
-                            {name: 'Edition', value: 'Cloud'},
-                            {name: 'Release', value: '0.95'}
-                        ]
-                    },
-                    importAsset: {
-                        handler: (promise) => {
-                            promise.then((assets) => {
-                                assets.forEach((asset) => {
-                                    console.log("Import asset stringify: " + JSON.stringify(asset))
-                                    window.open(asset.url);
-                                });
-                            });
-                        },
-                        eventProperties: [
-                            {name: 'Edition', value: 'Cloud'},
-                            {name: 'Release', value: '0.95'}
-                        ]
-                    },
-                }, redux.store.dispatch);
-
-                System.import("single-spa").then(function (singleSpa) {
-                    var status = singleSpa.getAppStatus("@opentext/otmm-asset-browse");
-                    if (status === 'MOUNTED') {
-                        singleSpa.unloadApplication('@opentext/otmm-asset-browse');
-                    } else {
-                        System.import("@opentext/otmm-micro-site-root-config");
-                    }
+  window.onload = function () {
+    if (typeof System !== 'undefined') {
+      System.import('@opentext/otmm-redux').then(function (redux) {
+        redux.setApplicationData({
+          applicationName: 'Extream',
+          baseURL: 'https://demo.cyangate.com:9443',
+          searchConfigId: 3,
+          keywordScopeId: 3,
+          inline: true,
+          multiSelect: true,
+          linkAsset: {
+            handler: (promise) => {
+              promise.then((assets) => {
+                assets.forEach((asset) => {
+                  updateAsset(asset);
                 });
-            });
-        } else {
-            console.error('SystemJS not loaded');
-        }
+              });
+            },
+            eventProperties: [
+              {name: 'Edition', value: 'Cloud'},
+              {name: 'Release', value: '0.95'}
+            ]
+          },
+          importAsset: {
+            handler: (promise) => {
+              promise.then((assets) => {
+                assets.forEach((asset) => {
+                  console.log("Import asset stringify: " + JSON.stringify(asset));
+                  importClicked(asset.url, asset.id);
+                });
+              });
+            },
+            eventProperties: [
+              {name: 'Edition', value: 'Cloud'},
+              {name: 'Release', value: '0.95'}
+            ]
+          },
+        }, redux.store.dispatch);
 
-        function updateAsset(asset) {
-            const selectedComponent = document.querySelector('.cq-Overlay.is-selected');
-            console.log("Updating asset with url: ", asset.url)
-            const imageUrl = asset.url;
-            const imageName = asset.name;
-            if (!selectedComponent) {
-                showPopupDialog(imageUrl, imageName)
-                return;
-            }
-            const componentPath = selectedComponent.getAttribute('data-path');
-            fetch("/libs/granite/csrf/token.json", {
-                credentials: "include"
+        System.import("single-spa").then(function (singleSpa) {
+          var status = singleSpa.getAppStatus("@opentext/otmm-asset-browse");
+          if (status === 'MOUNTED') {
+            singleSpa.unloadApplication('@opentext/otmm-asset-browse');
+          } else {
+            System.import("@opentext/otmm-micro-site-root-config");
+          }
+        });
+      });
+    } else {
+      console.error('SystemJS not loaded');
+    }
+
+    function updateAsset(asset) {
+      const selectedComponent = document.querySelector('.cq-Overlay.is-selected');
+      console.log("Updating asset with url: ", asset.url);
+      const imageUrl = asset.url;
+      const imageName = asset.name;
+      if (!selectedComponent) {
+        showPopupDialog(imageUrl, imageName);
+        return;
+      }
+      const componentPath = selectedComponent.getAttribute('data-path');
+      fetch("/libs/granite/csrf/token.json", {
+        credentials: "include"
+      })
+        .then(response => response.json())
+        .then(data => {
+          const csrfToken = data.token;
+          fetch("/bin/updateImageComponent", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/x-www-form-urlencoded",
+              "CSRF-Token": csrfToken
+            },
+            body: new URLSearchParams({
+              componentPath: componentPath,
+              imageUrl: imageUrl,
+              imageName: imageName
             })
-                .then(response => response.json())
-                .then(data => {
-                    const csrfToken = data.token;
-                    fetch("/bin/updateImageComponent", {
-                        method: "POST",
-                        headers: {
-                            "Content-Type": "application/x-www-form-urlencoded",
-                            "CSRF-Token": csrfToken
-                        },
-                        body: new URLSearchParams({
-                            componentPath: componentPath,
-                            imageUrl: imageUrl,
-                            imageName: imageName
-                        })
-                    })
-                        .then(response => response.text())
-                        .then(() => console.log("Asset updated"))
-                        .catch(error => console.error("Error updating component:", error));
-                })
-                .catch(error => console.error("Error fetching CSRF token:", error));
-        }
-        function showPopupDialog(imageUrl, imageName) {
-            const modal = document.createElement('div');
-            modal.style.position = 'fixed';
-            modal.style.top = '50%';
-            modal.style.left = '50%';
-            modal.style.transform = 'translate(-50%, -50%)';
-            modal.style.background = 'white';
-            modal.style.padding = '20px';
-            modal.style.boxShadow = '0px 4px 6px rgba(0,0,0,0.1)';
-            modal.style.zIndex = '10000';
-            modal.style.borderRadius = '8px';
-            modal.style.textAlign = 'center';
+          })
+            .then(response => response.text())
+            .then(() => console.log("Asset updated"))
+            .catch(error => console.error("Error updating component:", error));
+        })
+        .catch(error => console.error("Error fetching CSRF token:", error));
+    }
 
-            const message = document.createElement('p');
-            message.innerText = "No selected component found.";
-            modal.appendChild(message);
+    function importClicked(imageUrl, imageId) {
+      const imageName = imageId + ".jpg";
+      console.log("Calling importClicked with URL:", imageUrl, "and imageName:", imageName);
 
-            const goBackButton = document.createElement('button');
-            goBackButton.innerText = "Go Back";
-            goBackButton.style.marginRight = '10px';
-            goBackButton.onclick = function () {
+      fetch("/bin/saveExternalImage", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded"
+        },
+        body: new URLSearchParams({
+          imageUrl: imageUrl,
+          imageName: imageName
+        })
+      })
+        .then(response => response.text())
+        .then(result => {
+          console.log("Import servlet response:", result);
+        })
+        .catch(error => console.error("Error calling import servlet:", error));
+    }
+
+    function showPopupDialog(imageUrl, imageName) {
+      const modal = document.createElement('div');
+      modal.style.position = 'fixed';
+      modal.style.top = '50%';
+      modal.style.left = '50%';
+      modal.style.transform = 'translate(-50%, -50%)';
+      modal.style.background = 'white';
+      modal.style.padding = '20px';
+      modal.style.boxShadow = '0px 4px 6px rgba(0,0,0,0.1)';
+      modal.style.zIndex = '10000';
+      modal.style.borderRadius = '8px';
+      modal.style.textAlign = 'center';
+
+      const message = document.createElement('p');
+      message.innerText = "No selected component found.";
+      modal.appendChild(message);
+
+      const goBackButton = document.createElement('button');
+      goBackButton.innerText = "Go Back";
+      goBackButton.style.marginRight = '10px';
+      goBackButton.onclick = function () {
+        document.body.removeChild(modal);
+      };
+      const createImageComponentButton = document.createElement('button');
+      createImageComponentButton.innerText = "Create Image Component";
+      createImageComponentButton.onclick = function () {
+        fetch("/libs/granite/csrf/token.json", {
+          credentials: "include"
+        })
+          .then(response => response.json())
+          .then(data => {
+            const csrfToken = data.token;
+            const pageUrl = window.location.href;
+
+            fetch("/bin/createImageComponent", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/x-www-form-urlencoded",
+                "CSRF-Token": csrfToken
+              },
+              body: new URLSearchParams({
+                imageUrl: imageUrl,
+                pageUrl: pageUrl,
+                imageName: imageName
+              })
+            })
+              .then(response => response.text())
+              .then(responseText => {
+                console.log(responseText);
                 document.body.removeChild(modal);
-            };
-            const createImageComponentButton = document.createElement('button');
-            createImageComponentButton.innerText = "Create Image Component";
-            createImageComponentButton.onclick = function () {
-                fetch("/libs/granite/csrf/token.json", {
-                    credentials: "include"
-                })
-                    .then(response => response.json())
-                    .then(data => {
-                        const csrfToken = data.token;
-                        const pageUrl = window.location.href;
+              })
+              .catch(error => console.error("Error updating component:", error));
+          })
+          .catch(error => console.error("Error fetching CSRF token:", error));
+      };
 
-                        fetch("/bin/createImageComponent", {
-                            method: "POST",
-                            headers: {
-                                "Content-Type": "application/x-www-form-urlencoded",
-                                "CSRF-Token": csrfToken
-                            },
-                            body: new URLSearchParams({
-                                imageUrl: imageUrl,
-                                pageUrl: pageUrl,
-                                imageName: imageName
-                            })
-                        })
-                            .then(response => response.text())
-                            .then(responseText => {
-                                console.log(responseText);
-                                document.body.removeChild(modal);
-                            })
-                            .catch(error => console.error("Error updating component:", error));
-                    })
-                    .catch(error => console.error("Error fetching CSRF token:", error));
-            };
-
-            modal.appendChild(goBackButton);
-            modal.appendChild(createImageComponentButton);
-            document.body.appendChild(modal);
-        }
-    };
+      modal.appendChild(goBackButton);
+      modal.appendChild(createImageComponentButton);
+      document.body.appendChild(modal);
+    }
+  };
 </script>
 </body>
 </html>
