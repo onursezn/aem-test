@@ -49,9 +49,10 @@ public class CreateImageComponentServlet extends SlingAllMethodsServlet {
 
             ModifiableValueMap properties = componentResource.adaptTo(ModifiableValueMap.class);
             if (properties != null) {
-                properties.put("fileReference", imageUrl);
+                properties.put("fileReferenceConnector", imageUrl);
+                properties.put("fileReference", "/content/dam/aemconnector/asset.jpg");
                 properties.put("imageName", imageName);
-                properties.put("sling:resourceType", "aemconnector-new/components/image");
+                properties.put("sling:resourceType", "aemconnector/components/image");
             }
             resourceResolver.commit();
             response.getWriter().write("Image component created successfully.");

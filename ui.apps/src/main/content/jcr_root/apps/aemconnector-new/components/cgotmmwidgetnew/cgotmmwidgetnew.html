@@ -5,6 +5,7 @@
     <title>OTMM Asset Browser</title>
     <style>
         #otmm-asset-browser {
+            display:none;
             width: 100%;
             height: 100%;
             min-height: 600px;
@@ -14,16 +15,43 @@
     </style>
 </head>
 <body>
+<button type="button" class="close-widget">Close Widget</button>
+<button type="button" class="open-modal">Open as a Modal</button>
+<button type="button" class="open-sidepanel">Open in Side Panel</button>
 <div id="otmm-asset-browser"></div>
-<span>widget placeholder</span>
 
 <script defer src="https://cdnjs.cloudflare.com/ajax/libs/systemjs/6.14.1/system.min.js"></script>
 <script defer src="https://demo.cyangate.com:9443/otmm/ux-html/lib/single-spa/all-in-one-no-jquery-embed.js"></script>
 <script type="systemjs-importmap" src="https://demo.cyangate.com:9443/otmm/ux-html/single-spa/microsite-importmap.json"
         crossorigin="anonymous"></script>
-
 <script>
   window.onload = function () {
+    const closeWidgetButton = document.querySelector(".close-widget");
+    const openAsModal = document.querySelector(".open-modal");
+    const openSidePanel = document.querySelector(".open-sidepanel");
+    const assetBrowserDiv = document.getElementById("otmm-asset-browser");
+
+    closeWidgetButton.addEventListener("click", function () {
+      assetBrowserDiv.style.display = "none";
+    });
+    openAsModal.addEventListener("click", function () {
+      assetBrowserDiv.style.display = "block";
+      assetBrowserDiv.style.position = "fixed";
+      assetBrowserDiv.style.top = "50%";
+      assetBrowserDiv.style.left = "50%";
+      assetBrowserDiv.style.transform = "translate(-50%, -50%)";
+      assetBrowserDiv.style.width = "80%";
+      assetBrowserDiv.style.height = "80%";
+      assetBrowserDiv.style.zIndex = "10000";
+    });
+
+    openSidePanel.addEventListener("click", function () {
+      assetBrowserDiv.style.display = "block";
+      assetBrowserDiv.style.width = "100%";
+      assetBrowserDiv.style.height = "100%";
+      assetBrowserDiv.style.position = "relative";
+      assetBrowserDiv.style.zIndex = "1000";
+    });
     if (typeof System !== 'undefined') {
       System.import('@opentext/otmm-redux').then(function (redux) {
         redux.setApplicationData({
@@ -37,7 +65,7 @@
             handler: (promise) => {
               promise.then((assets) => {
                 assets.forEach((asset) => {
-                  updateAsset(asset);
+                  updateAsset(asset)
                 });
               });
             },
@@ -77,21 +105,25 @@
 
     function updateAsset(asset) {
       const selectedComponent = document.querySelector('.cq-Overlay.is-selected');
-      console.log("Updating asset with url: ", asset.url);
+      console.log("Updating asset with URL: ", asset.url);
+
       const imageUrl = asset.url;
       const imageName = asset.name;
+
       if (!selectedComponent) {
         showPopupDialog(imageUrl, imageName);
         return;
       }
+
       const componentPath = selectedComponent.getAttribute('data-path');
+
       fetch("/libs/granite/csrf/token.json", {
         credentials: "include"
       })
         .then(response => response.json())
         .then(data => {
           const csrfToken = data.token;
-          fetch("/bin/updateImageComponent", {
+          return fetch("/bin/updateImageComponent", {
             method: "POST",
             headers: {
               "Content-Type": "application/x-www-form-urlencoded",
@@ -102,28 +134,40 @@
               imageUrl: imageUrl,
               imageName: imageName
             })
-          })
-            .then(response => response.text())
-            .then(() => console.log("Asset updated"))
-            .catch(error => console.error("Error updating component:", error));
+          });
         })
-        .catch(error => console.error("Error fetching CSRF token:", error));
+        .then(response => {
+          if (response.status === 403) {
+            alert("Please select an image component.");
+            throw new Error("Forbidden: Invalid component type");
+          }
+          console.log("Asset updated");
+          window.location.reload();
+          return response.text()
+        })
+        .catch(error => console.error("Error updating component:", error));
     }
 
     function importClicked(imageUrl, imageId) {
       const imageName = imageId + ".jpg";
       console.log("Calling importClicked with URL:", imageUrl, "and imageName:", imageName);
 
-      fetch("/bin/saveExternalImage", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded"
-        },
-        body: new URLSearchParams({
-          imageUrl: imageUrl,
-          imageName: imageName
+      fetch("/libs/granite/csrf/token.json", { credentials: "include" })
+        .then(response => response.json())
+        .then(data => {
+          const csrfToken = data.token;
+          return fetch("/bin/saveExternalImage", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/x-www-form-urlencoded",
+              "CSRF-Token": csrfToken
+            },
+            body: new URLSearchParams({
+              imageUrl: imageUrl,
+              imageName: imageName
+            })
+          });
         })
-      })
         .then(response => response.text())
         .then(result => {
           console.log("Import servlet response:", result);
@@ -181,6 +225,7 @@
               .then(responseText => {
                 console.log(responseText);
                 document.body.removeChild(modal);
+                window.location.reload();
               })
               .catch(error => console.error("Error updating component:", error));
           })
