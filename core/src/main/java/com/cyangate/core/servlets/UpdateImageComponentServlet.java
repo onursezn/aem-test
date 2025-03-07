@@ -34,7 +34,7 @@ public class UpdateImageComponentServlet extends SlingAllMethodsServlet {
         }
         try (ResourceResolver resolver = request.getResourceResolver()) {
             Resource resource = resolver.getResource(componentPath);
-            if (resource == null || !"aemconnector/components/image".equals(resource.adaptTo(ModifiableValueMap.class).get("sling:resourceType", String.class))) {
+            if (resource == null || !"aemconnector-new/components/image".equals(resource.adaptTo(ModifiableValueMap.class).get("sling:resourceType", String.class))) {
                 response.setStatus(SlingHttpServletResponse.SC_FORBIDDEN);
                 response.getWriter().write("Forbidden: Invalid component type");
                 return;
@@ -42,7 +42,7 @@ public class UpdateImageComponentServlet extends SlingAllMethodsServlet {
                 ModifiableValueMap properties = resource.adaptTo(ModifiableValueMap.class);
                 if (properties != null) {
                     properties.put("fileReferenceConnector", imageUrl);
-                    properties.put("fileReference", "/content/dam/aemconnector/asset.jpg");
+                    properties.put("fileReference", "/content/dam/aemconnector-new/asset.jpg");
                     properties.put("imageName", imageName);
                     resolver.commit();
                     response.setStatus(SlingHttpServletResponse.SC_OK);
