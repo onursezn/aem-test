@@ -5,20 +5,39 @@
     <title>OTMM Asset Browser</title>
     <style>
         #otmm-asset-browser {
-            display:none;
+            display: block;
             width: 100%;
             height: 100%;
             min-height: 600px;
             position: relative;
             z-index: 1000;
+            border: 1px solid #ccc;
+        }
+        .button {
+            display: inline-block;
+            padding: 6px 12px;
+            font-size: 14px;
+            color: #fff;
+            background-color: #007ac2;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            margin: 4px;
+        }
+        .button:hover {
+            background-color: #005f99;
+        }
+        #toggle-mode-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 11000;
         }
     </style>
 </head>
 <body>
-<button type="button" class="close-widget">Close Widget</button>
-<button type="button" class="open-modal">Open as a Modal</button>
-<button type="button" class="open-sidepanel">Open in Side Panel</button>
-<div id="otmm-asset-browser"></div>
+<div id="otmm-asset-browser">
+</div>
 
 <script defer src="https://cdnjs.cloudflare.com/ajax/libs/systemjs/6.14.1/system.min.js"></script>
 <script defer src="https://demo.cyangate.com:9443/otmm/ux-html/lib/single-spa/all-in-one-no-jquery-embed.js"></script>
@@ -26,15 +45,26 @@
         crossorigin="anonymous"></script>
 <script>
   window.onload = function () {
-    const closeWidgetButton = document.querySelector(".close-widget");
-    const openAsModal = document.querySelector(".open-modal");
-    const openSidePanel = document.querySelector(".open-sidepanel");
     const assetBrowserDiv = document.getElementById("otmm-asset-browser");
 
-    closeWidgetButton.addEventListener("click", function () {
-      assetBrowserDiv.style.display = "none";
-    });
-    openAsModal.addEventListener("click", function () {
+    let currentMode = "sidePanel"; // default mode
+
+    const toggleButton = document.createElement("button");
+    toggleButton.id = "toggle-mode-btn";
+    toggleButton.className = "button";
+    assetBrowserDiv.appendChild(toggleButton);
+
+    function updateToggleButton() {
+      if (currentMode === "sidePanel") {
+        toggleButton.innerHTML = "Undock &#x2197;";
+      } else {
+        toggleButton.innerHTML = "Dock Left &#x2190;";
+      }
+    }
+    updateToggleButton();
+
+    function setModal() {
+      currentMode = "modal";
       assetBrowserDiv.style.display = "block";
       assetBrowserDiv.style.position = "fixed";
       assetBrowserDiv.style.top = "50%";
@@ -43,19 +73,73 @@
       assetBrowserDiv.style.width = "80%";
       assetBrowserDiv.style.height = "80%";
       assetBrowserDiv.style.zIndex = "10000";
-    });
 
-    openSidePanel.addEventListener("click", function () {
+      const sidePanel = document.getElementById('SidePanel');
+      const content = document.getElementById('Content');
+
+      if (sidePanel) sidePanel.style.width = '100px';
+      if (content) content.style.left = '100px';
+
+      updateToggleButton();
+    }
+
+    function setSidePanel() {
+      currentMode = "sidePanel";
       assetBrowserDiv.style.display = "block";
+      assetBrowserDiv.style.position = "relative";
+      assetBrowserDiv.style.top = "";
+      assetBrowserDiv.style.left = "";
+      assetBrowserDiv.style.transform = "";
       assetBrowserDiv.style.width = "100%";
       assetBrowserDiv.style.height = "100%";
-      assetBrowserDiv.style.position = "relative";
       assetBrowserDiv.style.zIndex = "1000";
+
+      const sidePanel = document.getElementById('SidePanel');
+      const content = document.getElementById('Content');
+
+      if (sidePanel) sidePanel.style.width = '500px';
+      if (content) content.style.left = '500px';
+
+      updateToggleButton();
+    }
+
+    toggleButton.addEventListener("click", function () {
+      if (currentMode === "sidePanel") {
+        setModal();
+      } else {
+        setSidePanel();
+      }
     });
+
+    setSidePanel();
+
+    function waitForContentAndAddButton() {
+      // Check if asset browser has content and button is missing
+      if (assetBrowserDiv.children.length > 0 && !document.getElementById('toggle-mode-btn')) {
+        console.log("Content detected, adding toggle button");
+        assetBrowserDiv.appendChild(toggleButton);
+        updateToggleButton();
+        return true;
+      }
+      return false;
+    }
+
+    // Set up an observer to watch for content changes
+    const observer = new MutationObserver(function(mutations) {
+      for (const mutation of mutations) {
+        if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+          if (waitForContentAndAddButton()) {
+            observer.disconnect();
+          }
+        }
+      }
+    });
+
+    observer.observe(assetBrowserDiv, { childList: true, subtree: true });
+
     if (typeof System !== 'undefined') {
       System.import('@opentext/otmm-redux').then(function (redux) {
         redux.setApplicationData({
-          // applicationName: 'AEM',
           applicationName: 'Exstream',
           applicationCategory: 'Content',
           trackingURL: window.location.href,
@@ -68,7 +152,7 @@
             handler: (promise) => {
               promise.then((assets) => {
                 assets.forEach((asset) => {
-                  updateAsset(asset)
+                  updateAsset(asset);
                 });
               });
             },
@@ -81,7 +165,7 @@
             handler: (promise) => {
               promise.then((assets) => {
                 assets.forEach((asset) => {
-                  console.log("Import asset stringify: " + JSON.stringify(asset))
+                  console.log("Import asset stringify: " + JSON.stringify(asset));
                   importClicked(asset.url, asset.id);
                 });
               });
@@ -98,7 +182,9 @@
           if (status === 'MOUNTED') {
             singleSpa.unloadApplication('@opentext/otmm-asset-browse');
           } else {
-            System.import("@opentext/otmm-micro-site-root-config");
+            System.import("@opentext/otmm-micro-site-root-config").then(() => {
+              waitForContentAndAddButton();
+            });
           }
         });
       });
@@ -213,12 +299,14 @@
 
       const goBackButton = document.createElement('button');
       goBackButton.innerText = "Go Back";
+      goBackButton.className = "button";
       goBackButton.style.marginRight = '10px';
       goBackButton.onclick = function () {
         document.body.removeChild(modal);
       };
       const createImageComponentButton = document.createElement('button');
       createImageComponentButton.innerText = "Create Image Component";
+      createImageComponentButton.className = "button";
       createImageComponentButton.onclick = function () {
         fetch("/libs/granite/csrf/token.json", {
           credentials: "include"
