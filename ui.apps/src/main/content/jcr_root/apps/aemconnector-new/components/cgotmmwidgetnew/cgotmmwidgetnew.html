@@ -55,7 +55,10 @@
     if (typeof System !== 'undefined') {
       System.import('@opentext/otmm-redux').then(function (redux) {
         redux.setApplicationData({
-          applicationName: 'Extream',
+          // applicationName: 'AEM',
+          applicationName: 'Exstream',
+          applicationCategory: 'Content',
+          trackingURL: window.location.href,
           baseURL: 'https://demo.cyangate.com:9443',
           searchConfigId: 3,
           keywordScopeId: 3,
@@ -78,7 +81,7 @@
             handler: (promise) => {
               promise.then((assets) => {
                 assets.forEach((asset) => {
-                  console.log("Import asset stringify: " + JSON.stringify(asset));
+                  console.log("Import asset stringify: " + JSON.stringify(asset))
                   importClicked(asset.url, asset.id);
                 });
               });
@@ -142,8 +145,24 @@
             throw new Error("Forbidden: Invalid component type");
           }
           console.log("Asset updated");
-          window.location.reload();
-          return response.text()
+
+          try {
+            if (window.Granite && window.Granite.author && window.Granite.author.edit) {
+              var editable = window.Granite.author.edit.findEditables().filter(function(editable) {
+                return editable.path === componentPath;
+              })[0];
+
+              if (editable) {
+                window.Granite.author.edit.actions.doRefresh(editable);
+                console.log("Component refreshed via AEM editor API");
+                return response.text();
+              }
+            }
+          } catch (e) {
+            console.error("Error using Granite API:", e);
+          }
+
+          return response.text();
         })
         .catch(error => console.error("Error updating component:", error));
     }
