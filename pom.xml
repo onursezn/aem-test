@@ -144,11 +144,11 @@
     
     
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-                    
-    
-    
-    <aem.sdk.api>2025.2.19586.20250218T200657Z-250100</aem.sdk.api>
-                    
+
+
+
+    <aem.sdk.api>2025.1.19149.20250116T154450Z-241100</aem.sdk.api>
+
     
     
     <aemanalyser.version>1.4.10</aemanalyser.version>
@@ -649,8 +649,6 @@ Bundle-DocURL:
           
           
           <dependencies>
-                                                            
-            
             
             <dependency>
                                                                       
@@ -2239,6 +2237,12 @@ Bundle-DocURL:
                                     
       
       
+      </dependency>
+
+      <dependency>
+        <groupId>org.projectlombok</groupId>
+        <artifactId>lombok</artifactId>
+        <version>1.18.30</version>
       </dependency>
                           
     

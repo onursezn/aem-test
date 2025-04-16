@@ -98,318 +98,331 @@
 <script type="systemjs-importmap" src="https://demo.cyangate.com:9443/otmm/ux-html/single-spa/microsite-importmap.json"
         crossorigin="anonymous"></script>
 <script>
-  window.onload = function () {
-    const assetBrowserDiv = document.getElementById("otmm-asset-browser");
+    window.onload = function () {
+        const assetBrowserDiv = document.getElementById("otmm-asset-browser");
 
-    let currentMode = "sidePanel"; // default mode
+        let currentMode = "sidePanel"; // default mode
 
-    const toggleButton = document.createElement("button");
-    toggleButton.id = "toggle-mode-btn";
-    toggleButton.className = "button";
-    assetBrowserDiv.appendChild(toggleButton);
-
-    function updateToggleButton() {
-      if (currentMode === "sidePanel") {
-        toggleButton.innerHTML = "Undock &#x2197;";
-      } else {
-        toggleButton.innerHTML = "Dock Left &#x2190;";
-      }
-    }
-    updateToggleButton();
-
-    function setModal() {
-      currentMode = "modal";
-      assetBrowserDiv.style.display = "block";
-      assetBrowserDiv.style.position = "fixed";
-      assetBrowserDiv.style.top = "50%";
-      assetBrowserDiv.style.left = "50%";
-      assetBrowserDiv.style.transform = "translate(-50%, -50%)";
-      assetBrowserDiv.style.width = "70%";
-      assetBrowserDiv.style.height = "80%";
-      assetBrowserDiv.style.zIndex = "10000";
-
-      const sidePanel = document.getElementById('SidePanel');
-      const content = document.getElementById('Content');
-
-      if (sidePanel) sidePanel.style.width = '300px';
-      if (content) content.style.left = '300px';
-
-      updateToggleButton();
-    }
-
-    function setSidePanel() {
-      currentMode = "sidePanel";
-      assetBrowserDiv.style.display = "block";
-      assetBrowserDiv.style.position = "relative";
-      assetBrowserDiv.style.top = "";
-      assetBrowserDiv.style.left = "";
-      assetBrowserDiv.style.transform = "";
-      assetBrowserDiv.style.width = "100%";
-      assetBrowserDiv.style.height = "92%";
-      assetBrowserDiv.style.zIndex = "1000";
-
-      const sidePanel = document.getElementById('SidePanel');
-      const content = document.getElementById('Content');
-
-      if (sidePanel) sidePanel.style.width = '500px';
-      if (content) content.style.left = '500px';
-
-      updateToggleButton();
-    }
-
-    toggleButton.addEventListener("click", function () {
-      if (currentMode === "sidePanel") {
-        setModal();
-      } else {
-        setSidePanel();
-      }
-    });
-
-    setSidePanel();
-
-    function waitForContentAndAddButton() {
-      // Check if asset browser has content and button is missing
-      if (assetBrowserDiv.children.length > 0 && !document.getElementById('toggle-mode-btn')) {
-        console.log("Content detected, adding toggle button");
+        const toggleButton = document.createElement("button");
+        toggleButton.id = "toggle-mode-btn";
+        toggleButton.className = "button";
         assetBrowserDiv.appendChild(toggleButton);
-        updateToggleButton();
-        return true;
-      }
-      return false;
-    }
 
-    // Set up an observer to watch for content changes
-    const observer = new MutationObserver(function(mutations) {
-      for (const mutation of mutations) {
-        if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
-          if (waitForContentAndAddButton()) {
-            observer.disconnect();
-          }
-        }
-      }
-    });
-
-    observer.observe(assetBrowserDiv, { childList: true, subtree: true });
-
-    if (typeof System !== 'undefined') {
-      System.import('@opentext/otmm-redux').then(function (redux) {
-        redux.setApplicationData({
-          applicationName: 'Exstream',
-          applicationCategory: 'Content',
-          trackingURL: window.location.href,
-          baseURL: 'https://demo.cyangate.com:9443',
-          searchConfigId: 3,
-          keywordScopeId: 3,
-          inline: true,
-          multiSelect: true,
-          linkAsset: {
-            handler: (promise) => {
-              promise.then((assets) => {
-                assets.forEach((asset) => {
-                  updateAsset(asset);
-                });
-              });
-            },
-            eventProperties: [
-              {name: 'Edition', value: 'Cloud'},
-              {name: 'Release', value: '0.95'}
-            ]
-          },
-          importAsset: {
-            handler: (promise) => {
-              promise.then((assets) => {
-                assets.forEach((asset) => {
-                  console.log("Import asset stringify: " + JSON.stringify(asset));
-                  importClicked(asset.url, asset.id);
-                });
-              });
-            },
-            eventProperties: [
-              {name: 'Edition', value: 'Cloud'},
-              {name: 'Release', value: '0.95'}
-            ]
-          },
-        }, redux.store.dispatch);
-
-        System.import("single-spa").then(function (singleSpa) {
-          var status = singleSpa.getAppStatus("@opentext/otmm-asset-browse");
-          if (status === 'MOUNTED') {
-            singleSpa.unloadApplication('@opentext/otmm-asset-browse');
-          } else {
-            System.import("@opentext/otmm-micro-site-root-config").then(() => {
-              waitForContentAndAddButton();
-            });
-          }
-        });
-      });
-    } else {
-      console.error('SystemJS not loaded');
-    }
-
-    function updateAsset(asset) {
-      const selectedComponent = document.querySelector('.cq-Overlay.is-selected');
-      console.log("Updating asset with URL: ", asset.url);
-
-      const imageUrl = asset.url;
-      const imageName = asset.name;
-
-      if (!selectedComponent) {
-        showPopupDialog(imageUrl, imageName);
-        return;
-      }
-
-      const componentPath = selectedComponent.getAttribute('data-path');
-
-      fetch("/libs/granite/csrf/token.json", {
-        credentials: "include"
-      })
-        .then(response => response.json())
-        .then(data => {
-          const csrfToken = data.token;
-          return fetch("/bin/updateImageComponent", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/x-www-form-urlencoded",
-              "CSRF-Token": csrfToken
-            },
-            body: new URLSearchParams({
-              componentPath: componentPath,
-              imageUrl: imageUrl,
-              imageName: imageName
-            })
-          });
-        })
-        .then(response => {
-          if (response.status === 403) {
-            alert("Please select an image component.");
-            throw new Error("Forbidden: Invalid component type");
-          }
-          console.log("Asset updated");
-
-          try {
-            if (window.Granite && window.Granite.author && window.Granite.author.edit) {
-              var editable = window.Granite.author.edit.findEditables().filter(function(editable) {
-                return editable.path === componentPath;
-              })[0];
-
-              if (editable) {
-                window.Granite.author.edit.actions.doRefresh(editable);
-                console.log("Component refreshed via AEM editor API");
-                return response.text();
-              }
+        function updateToggleButton() {
+            if (currentMode === "sidePanel") {
+                toggleButton.innerHTML = "Undock &#x2197;";
+            } else {
+                toggleButton.innerHTML = "Dock Left &#x2190;";
             }
-          } catch (e) {
-            console.error("Error using Granite API:", e);
-          }
+        }
+        updateToggleButton();
 
-          return response.text();
-        })
-        .catch(error => console.error("Error updating component:", error));
-    }
+        function setModal() {
+            currentMode = "modal";
+            assetBrowserDiv.style.display = "block";
+            assetBrowserDiv.style.position = "fixed";
+            assetBrowserDiv.style.top = "50%";
+            assetBrowserDiv.style.left = "50%";
+            assetBrowserDiv.style.transform = "translate(-50%, -50%)";
+            assetBrowserDiv.style.width = "70%";
+            assetBrowserDiv.style.height = "80%";
+            assetBrowserDiv.style.zIndex = "10000";
 
-    function importClicked(imageUrl, imageId) {
-      const imageName = imageId + ".jpg";
-      console.log("Calling importClicked with URL:", imageUrl, "and imageName:", imageName);
+            const sidePanel = document.getElementById('SidePanel');
+            const content = document.getElementById('Content');
 
-      fetch("/libs/granite/csrf/token.json", { credentials: "include" })
-        .then(response => response.json())
-        .then(data => {
-          const csrfToken = data.token;
-          return fetch("/bin/saveExternalImage", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/x-www-form-urlencoded",
-              "CSRF-Token": csrfToken
-            },
-            body: new URLSearchParams({
-              imageUrl: imageUrl,
-              imageName: imageName
+            if (sidePanel) sidePanel.style.width = '300px';
+            if (content) content.style.left = '300px';
+
+            updateToggleButton();
+        }
+
+        function setSidePanel() {
+            currentMode = "sidePanel";
+            assetBrowserDiv.style.display = "block";
+            assetBrowserDiv.style.position = "relative";
+            assetBrowserDiv.style.top = "";
+            assetBrowserDiv.style.left = "";
+            assetBrowserDiv.style.transform = "";
+            assetBrowserDiv.style.width = "100%";
+            assetBrowserDiv.style.height = "92%";
+            assetBrowserDiv.style.zIndex = "1000";
+
+            const sidePanel = document.getElementById('SidePanel');
+            const content = document.getElementById('Content');
+
+            if (sidePanel) sidePanel.style.width = '500px';
+            if (content) content.style.left = '500px';
+
+            updateToggleButton();
+        }
+
+        toggleButton.addEventListener("click", function () {
+            if (currentMode === "sidePanel") {
+                setModal();
+            } else {
+                setSidePanel();
+            }
+        });
+
+        setSidePanel();
+
+        function waitForContentAndAddButton() {
+            // Check if asset browser has content and button is missing
+            if (assetBrowserDiv.children.length > 0 && !document.getElementById('toggle-mode-btn')) {
+                console.log("Content detected, adding toggle button");
+                assetBrowserDiv.appendChild(toggleButton);
+                updateToggleButton();
+                return true;
+            }
+            return false;
+        }
+
+        // Set up an observer to watch for content changes
+        const observer = new MutationObserver(function(mutations) {
+            for (const mutation of mutations) {
+                if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+                    if (waitForContentAndAddButton()) {
+                        observer.disconnect();
+                    }
+                }
+            }
+        });
+
+        observer.observe(assetBrowserDiv, { childList: true, subtree: true });
+
+        if (typeof System !== 'undefined') {
+            fetch('/bin/otmmconnector/baseurl')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Failed to fetch baseURL');
+                    }
+                    return response.text();
+                })
+                .then(baseURL => {
+                    console.log("Base url is: " + baseURL);
+                    System.import('@opentext/otmm-redux').then(function (redux) {
+                        redux.setApplicationData({
+                            applicationName: 'Exstream',
+                            applicationCategory: 'Content',
+                            trackingURL: window.location.href,
+                            baseURL: baseURL.trim(),
+                            searchConfigId: 3,
+                            keywordScopeId: 3,
+                            inline: true,
+                            multiSelect: true,
+                            linkAsset: {
+                                handler: (promise) => {
+                                    promise.then((assets) => {
+                                        assets.forEach((asset) => {
+                                            updateAsset(asset);
+                                        });
+                                    });
+                                },
+                                eventProperties: [
+                                    {name: 'Edition', value: 'Cloud'},
+                                    {name: 'Release', value: '0.95'}
+                                ]
+                            },
+                            importAsset: {
+                                handler: (promise) => {
+                                    promise.then((assets) => {
+                                        assets.forEach((asset) => {
+                                            console.log("Import asset stringify: " + JSON.stringify(asset));
+                                            importClicked(asset.url, asset.id);
+                                        });
+                                    });
+                                },
+                                eventProperties: [
+                                    {name: 'Edition', value: 'Cloud'},
+                                    {name: 'Release', value: '0.95'}
+                                ]
+                            },
+                        }, redux.store.dispatch);
+
+                        System.import("single-spa").then(function (singleSpa) {
+                            var status = singleSpa.getAppStatus("@opentext/otmm-asset-browse");
+                            if (status === 'MOUNTED') {
+                                singleSpa.unloadApplication('@opentext/otmm-asset-browse');
+                            } else {
+                                System.import("@opentext/otmm-micro-site-root-config").then(() => {
+                                    waitForContentAndAddButton();
+                                });
+                            }
+                        });
+                    });
+                })
+                .catch(error => {
+                    console.error('Error loading baseURL:', error);
+                });
+        } else {
+            console.error('SystemJS not loaded');
+        }
+
+        function updateAsset(asset) {
+            const selectedComponent = document.querySelector('.cq-Overlay.is-selected');
+            console.log("Updating asset with URL: ", asset.url);
+
+            const imageUrl = asset.url;
+            const imageName = asset.name;
+
+            if (!selectedComponent) {
+                showPopupDialog(imageUrl, imageName);
+                return;
+            }
+
+            const componentPath = selectedComponent.getAttribute('data-path');
+
+            fetch("/libs/granite/csrf/token.json", {
+                credentials: "include"
             })
-          });
-        })
-        .then(response => response.text())
-        .then(result => {
-          console.log("Import servlet response:", result);
-        })
-        .catch(error => console.error("Error calling import servlet:", error));
-    }
+                .then(response => response.json())
+                .then(data => {
+                    const csrfToken = data.token;
+                    return fetch("/bin/updateImageComponent", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/x-www-form-urlencoded",
+                            "CSRF-Token": csrfToken
+                        },
+                        body: new URLSearchParams({
+                            componentPath: componentPath,
+                            imageUrl: imageUrl,
+                            imageName: imageName
+                        })
+                    });
+                })
+                .then(response => {
+                    if (response.status === 403) {
+                        alert("Please select an image component.");
+                        throw new Error("Forbidden: Invalid component type");
+                    }
+                    console.log("Asset updated");
 
-    function showPopupDialog(imageUrl, imageName) {
-      const modal = document.createElement('div');
-      modal.className = 'coral-dialog';
+                    try {
+                        if (window.Granite && window.Granite.author && window.Granite.author.edit) {
+                            var editable = window.Granite.author.edit.findEditables().filter(function(editable) {
+                                return editable.path === componentPath;
+                            })[0];
 
-      const header = document.createElement('div');
-      header.className = 'coral-dialog-header';
+                            if (editable) {
+                                window.Granite.author.edit.actions.doRefresh(editable);
+                                console.log("Component refreshed via AEM editor API");
+                                return response.text();
+                            }
+                        }
+                    } catch (e) {
+                        console.error("Error using Granite API:", e);
+                    }
 
-      const title = document.createElement('h2');
-      title.className = 'coral-dialog-title';
-      title.innerText = "No Component Selected";
-      header.appendChild(title);
+                    return response.text();
+                })
+                .catch(error => console.error("Error updating component:", error));
+        }
 
-      const content = document.createElement('div');
-      content.className = 'coral-dialog-content';
+        function importClicked(imageUrl, imageId) {
+            const imageName = imageId + ".jpg";
+            console.log("Calling importClicked with URL:", imageUrl, "and imageName:", imageName);
 
-      const message = document.createElement('p');
-      message.innerText = "Please select an image component before linking an asset.";
-      content.appendChild(message);
+            fetch("/libs/granite/csrf/token.json", { credentials: "include" })
+                .then(response => response.json())
+                .then(data => {
+                    const csrfToken = data.token;
+                    return fetch("/bin/saveExternalImage", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/x-www-form-urlencoded",
+                            "CSRF-Token": csrfToken
+                        },
+                        body: new URLSearchParams({
+                            imageUrl: imageUrl,
+                            imageName: imageName
+                        })
+                    });
+                })
+                .then(response => response.text())
+                .then(result => {
+                    console.log("Import servlet response:", result);
+                })
+                .catch(error => console.error("Error calling import servlet:", error));
+        }
 
-      const footer = document.createElement('div');
-      footer.className = 'coral-dialog-footer';
+        function showPopupDialog(imageUrl, imageName) {
+            const modal = document.createElement('div');
+            modal.className = 'coral-dialog';
 
-      /* Create Image Component
-      const createImageComponentButton = document.createElement('button');
-      createImageComponentButton.innerText = "Create Image Component";
-      createImageComponentButton.className = "coral-button coral-button-primary";
-      createImageComponentButton.onclick = function () {
-        fetch("/libs/granite/csrf/token.json", {
-          credentials: "include"
-        })
-          .then(response => response.json())
-          .then(data => {
-            const csrfToken = data.token;
-            const pageUrl = window.location.href;
+            const header = document.createElement('div');
+            header.className = 'coral-dialog-header';
 
-            fetch("/bin/createImageComponent", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/x-www-form-urlencoded",
-                "CSRF-Token": csrfToken
-              },
-              body: new URLSearchParams({
-                imageUrl: imageUrl,
-                pageUrl: pageUrl,
-                imageName: imageName
+            const title = document.createElement('h2');
+            title.className = 'coral-dialog-title';
+            title.innerText = "No Component Selected";
+            header.appendChild(title);
+
+            const content = document.createElement('div');
+            content.className = 'coral-dialog-content';
+
+            const message = document.createElement('p');
+            message.innerText = "Please select an image component before linking an asset.";
+            content.appendChild(message);
+
+            const footer = document.createElement('div');
+            footer.className = 'coral-dialog-footer';
+
+            /* Create Image Component
+            const createImageComponentButton = document.createElement('button');
+            createImageComponentButton.innerText = "Create Image Component";
+            createImageComponentButton.className = "coral-button coral-button-primary";
+            createImageComponentButton.onclick = function () {
+              fetch("/libs/granite/csrf/token.json", {
+                credentials: "include"
               })
-            })
-              .then(response => response.text())
-              .then(responseText => {
-                console.log(responseText);
+                .then(response => response.json())
+                .then(data => {
+                  const csrfToken = data.token;
+                  const pageUrl = window.location.href;
+
+                  fetch("/bin/createImageComponent", {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/x-www-form-urlencoded",
+                      "CSRF-Token": csrfToken
+                    },
+                    body: new URLSearchParams({
+                      imageUrl: imageUrl,
+                      pageUrl: pageUrl,
+                      imageName: imageName
+                    })
+                  })
+                    .then(response => response.text())
+                    .then(responseText => {
+                      console.log(responseText);
+                      document.body.removeChild(modal);
+                      window.location.reload();
+                    })
+                    .catch(error => console.error("Error updating component:", error));
+                })
+                .catch(error => console.error("Error fetching CSRF token:", error));
+            };
+            */
+
+            const okButton = document.createElement('button');
+            okButton.innerText = "OK";
+            okButton.className = "coral-button coral-button-primary";
+            okButton.onclick = function () {
                 document.body.removeChild(modal);
-                window.location.reload();
-              })
-              .catch(error => console.error("Error updating component:", error));
-          })
-          .catch(error => console.error("Error fetching CSRF token:", error));
-      };
-      */
+            };
 
-      const okButton = document.createElement('button');
-      okButton.innerText = "OK";
-      okButton.className = "coral-button coral-button-primary";
-      okButton.onclick = function () {
-        document.body.removeChild(modal);
-      };
+            footer.appendChild(okButton);
+            // footer.appendChild(createImageComponentButton);
 
-      footer.appendChild(okButton);
-      // footer.appendChild(createImageComponentButton);
+            modal.appendChild(header);
+            modal.appendChild(content);
+            modal.appendChild(footer);
 
-      modal.appendChild(header);
-      modal.appendChild(content);
-      modal.appendChild(footer);
-
-      document.body.appendChild(modal);
-    }
-  };
+            document.body.appendChild(modal);
+        }
+    };
 </script>
 </body>
 </html>
