@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<workspaceFilter version="1.0">
+    <filter root="/apps/wcm" mode="merge"/>
+    <filter root="/apps/wcm/core" mode="merge"/>
+    <filter root="/apps/wcm/core/content/editor" mode="merge"/>
+</workspaceFilter>

@@ -86,7 +86,9 @@
     
     
     <module>ui.tests</module>
-      
+
+    <module>ui.override</module>
+
   </modules>
           
   
